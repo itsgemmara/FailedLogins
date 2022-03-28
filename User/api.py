@@ -13,6 +13,7 @@ from rest_framework.response import Response
 
 from .serializers import UserSerializer, LoginSerializer, UnBlockCodeSerializer, UnBlockSerializer
 from .models import UnBlockCode
+from .utils import activate_user_account
 
 
 class CreateUserApiView(CreateAPIView):
@@ -37,15 +38,6 @@ class LoginApi(APIView):
 
 class UnBlockApi(APIView):
 
-    def activate_user_account(self, user, main_code, verify_code):
-        if main_code.code == verify_code:
-            user.is_locked, user.is_active = False, True
-            main_code.is_expired, main_code.used = True, True
-            main_code.save()
-            user.save()
-        else:
-            raise Exception('invalid code')
-
     def post(self, request):
         serializer = UnBlockSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception= True)
@@ -53,7 +45,7 @@ class UnBlockApi(APIView):
         verify_code = serializer.validated_data["verify_code"]
         try:
             main_code = UnBlockCode.objects.get(user=user, used=False, is_expired=False)
-            self.activate_user_account(user, main_code, verify_code)
+            activate_user_account(user, main_code, verify_code)
         except Exception as ex:
             raise Exception('invalid code. Enter the code correctly or request a new code.')
 

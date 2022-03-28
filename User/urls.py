@@ -1,12 +1,13 @@
 from django.urls import path
 
-from .api import CreateUserApiView, LoginAPIView
-from .validators import login_validator
+from .api import CreateUserApiView, LoginApi, UnblockCodeGeneratorApi, UnBlockApi
 
 
 urlpatterns = [
     path('register/', CreateUserApiView.as_view()),
-    path('login/', LoginAPIView.as_view()),
-    path('login/<str:phone_number>/<str:password>/', login_validator)
+    path('login/', LoginApi.as_view()),
+    path('unblock-verify-code/', UnblockCodeGeneratorApi.as_view()),
+    path('unblock-account/', UnBlockApi.as_view())
+
 
 ]

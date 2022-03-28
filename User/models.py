@@ -21,18 +21,18 @@ class CustomUser(AbstractUser):
 
 class IP(models.Model):
 
-    username = models.CharField(max_length=255)
-    ip = models.CharField(max_length=15)
-    count_faild_login = models.IntegerField(default=0, null=True)
+    ip = models.CharField(max_length=15,unique=True)
+    date_created = models.DateTimeField(auto_now=True)
+    is_locked = models.BooleanField(default=False)
 
 
 class WrongPass(models.Model):
 
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now=True)
-    user_IP = models.OneToOneField(IP, on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
     state = models.IntegerField(default=0, null=True)
+    ip = models.ForeignKey(IP, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return f"{self.user.phone_number}:{self.state}"
@@ -47,4 +47,13 @@ class Block(models.Model):
     def __str__(self):
         return f"{self.user.phone_number}:{self.count_of_wrong_pass}"
 
+
+class UnBlockCode(models.Model):
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    code = models.CharField(max_length=5)
+    used = models.BooleanField(default=False)
+    is_expired = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now=True)
+    expired_at = models.DateTimeField(null=True)
 

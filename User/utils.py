@@ -1,3 +1,4 @@
+
 def activate_user_account( user, main_code, verify_code):
     if main_code.code == verify_code:
         user.is_locked, user.is_active = False, True
@@ -6,3 +7,5 @@ def activate_user_account( user, main_code, verify_code):
         user.save()
     else:
         raise Exception('invalid code')
+
+

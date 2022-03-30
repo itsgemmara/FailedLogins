@@ -35,7 +35,6 @@ def login_username_validator(request, phone_number, password):
             block.save()
             ip = get_ip(request)
             ip_obj, created = IP.objects.get_or_create(ip=ip)
-            print(ip_obj,'11111111111111111111111111111')
             wrong_pass = WrongPass.objects.create(user=user,
                                                   state=block.count_of_wrong_pass, ip=ip_obj)
             active_wpass_counts = WrongPass.objects.filter(user=user, is_active=True).count()

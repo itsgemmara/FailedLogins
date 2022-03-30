@@ -1,6 +1,16 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+import binascii
+import os
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
+
 
 from .managers import CustomUserManager
 
@@ -40,7 +50,7 @@ class WrongPass(models.Model):
 
 class Block(models.Model):
 
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, unique=True)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now=True)  # interval start date
     count_of_wrong_pass = models.IntegerField(default=1, null=True)
 
@@ -57,3 +67,23 @@ class UnBlockCode(models.Model):
     created_at = models.DateTimeField(auto_now=True)
     expired_at = models.DateTimeField(null=True)
 
+
+class CustomToken(Token):
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='auth_token',
+        on_delete=models.CASCADE, verbose_name=_("User")
+    )
+
+
+class CustomTokenProxy(CustomToken):
+    """
+    Proxy mapping pk to user pk for use in admin.
+    """
+    @property
+    def pk(self):
+        return self.user_id
+
+    class Meta:
+        proxy = 'rest_framework.authtoken' not in settings.INSTALLED_APPS
+        verbose_name = "token proxy"

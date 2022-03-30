@@ -5,14 +5,15 @@ from rest_framework import permissions
 from rest_framework.generics import CreateAPIView
 from rest_framework.views import APIView
 from django.contrib.auth import login, logout
-from rest_framework.authtoken.models import Token
 from django.http import HttpResponse
 from rest_framework import status
-from django.contrib.auth import get_user_model # If used custom user model
+from django.contrib.auth import get_user_model  # If used custom user model
 from rest_framework.response import Response
+from rest_framework.generics import GenericAPIView
+from rest_framework import permissions
 
-from .serializers import UserSerializer, LoginSerializer, UnBlockCodeSerializer, UnBlockSerializer
-from .models import UnBlockCode
+from .serializers import *
+from .models import UnBlockCode, CustomToken
 from .utils import activate_user_account
 
 
@@ -25,18 +26,23 @@ class CreateUserApiView(CreateAPIView):
     serializer_class = UserSerializer
 
 
-class LoginApi(APIView):
+class LoginApi(GenericAPIView):
+    serializer_class = LoginSerializer
 
     def post(self, request):
+        permission_classes = [
+            permissions.AllowAny  # Or anon users can't register
+        ]
         serializer = LoginSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception= True)
         user = serializer.validated_data["user"]
         login(request, user)
-        token, created = Token.objects.get_or_create(user=user)
+        token = CustomToken.objects.create(user=user)
         return Response({"Token": token.key}, status=200)
 
 
-class UnBlockApi(APIView):
+class UnBlockApi(GenericAPIView):
+    serializer_class = UnBlockSerializer
 
     def post(self, request):
         serializer = UnBlockSerializer(data=request.data, context={'request': request})
@@ -52,7 +58,8 @@ class UnBlockApi(APIView):
         return Response(status=200)
 
 
-class UnblockCodeGeneratorApi(APIView):
+class UnblockCodeGeneratorApi(GenericAPIView):
+    serializer_class = UnBlockCodeSerializer
 
     def __init__(self, code=None):
         self.code = code
@@ -82,3 +89,14 @@ class UnblockCodeGeneratorApi(APIView):
         elif unexpired_codes.count() == 1 and not new_code_status:
             verify_code = UnBlockCode.objects.get(user=user, used=False, is_expired=False).code
             return Response({"verify code": verify_code}, status=200)
+
+
+class DeleteToken(GenericAPIView, permissions.IsAuthenticated):
+    serializer_class = DeleteTokenSerializer
+
+    def post(self, request):
+        serializer = DeleteTokenSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        target_token = serializer.validated_data["target_token"]
+        target_token.delete()
+        return Response(status=200)

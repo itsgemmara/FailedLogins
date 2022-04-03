@@ -5,8 +5,9 @@ from django.contrib.auth import authenticate, login, get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions
 
+from User.models import CustomUser
 from .validators import login_username_validator, ip_validator
-from .models import CustomUser, CustomToken
+
 
 User = get_user_model()
 UserModel = get_user_model()
@@ -39,7 +40,28 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserModel
-        fields = ("phone_number", "password", "password2",)
+        fields = ("phone_number", "password", "password2")
+
+
+class UpdateUserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserModel
+        fields = ("phone_number", "first_name", "last_name", "email")
+
+
+class UserListSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserModel
+        fields = ("phone_number", "pk")
+
+
+class UserRetrieveSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserModel
+        fields = ("phone_number", "first_name", "last_name", "email", "date_joined")
 
 
 class LoginSerializer(serializers.ModelSerializer):
@@ -99,22 +121,3 @@ class UnBlockCodeSerializer(serializers.Serializer):
                 return validated_data
             raise ValidationError("no user with this phone number")
 
-
-class DeleteTokenSerializer(serializers.Serializer):
-    user_token = serializers.CharField()
-    token_to_delete = serializers.CharField()
-
-    def validate(self, validated_data):
-        if validated_data['user_token'] and validated_data['token_to_delete']:
-            if validated_data['user_token'] != validated_data['token_to_delete']:
-                main_token = get_object_or_404(CustomToken, key=validated_data['user_token'])
-                target_token = get_object_or_404(CustomToken, key=validated_data['token_to_delete'])
-                if (main_token.user == self.context['request'].user) and (main_token.user == target_token.user):
-                    validated_data["target_token"] = target_token
-                    return validated_data
-                else:
-                    raise ValidationError("invalid token")
-            else:
-                raise ValidationError("tokens are the same")
-        else:
-            raise ValidationError("tokens are required")

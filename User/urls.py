@@ -1,13 +1,16 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 
-from .api import CreateUserApiView, LoginApi, UnblockCodeGeneratorApi, UnBlockApi
+from .api import *
+
+
+account_router = DefaultRouter()
+account_router.register(r'account-viewset/', AccountViewSet, basename='failed_logins')
+user_router = DefaultRouter()
+user_router.register(r'user-viewset/', UserViewSet, basename='users')
 
 
 urlpatterns = [
-    path('register/', CreateUserApiView.as_view()),
-    path('login/', LoginApi.as_view()),
-    path('unblock-verify-code/', UnblockCodeGeneratorApi.as_view()),
-    path('unblock-account/', UnBlockApi.as_view())
-
-
+    path('users/', include(user_router.urls)),
+    path('account/', include(account_router.urls)),
 ]

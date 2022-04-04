@@ -2,9 +2,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from django.contrib.auth import authenticate, login, get_user_model
+from django.shortcuts import get_object_or_404
+from rest_framework import permissions
 
+from User.models import CustomUser
 from .validators import login_username_validator, ip_validator
-from .models import CustomUser
+
 
 User = get_user_model()
 UserModel = get_user_model()
@@ -37,7 +40,28 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserModel
-        fields = ("phone_number", "password", "password2",)
+        fields = ("phone_number", "password", "password2")
+
+
+class UpdateUserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserModel
+        fields = ("phone_number", "first_name", "last_name", "email")
+
+
+class UserListSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserModel
+        fields = ("phone_number", "pk")
+
+
+class UserRetrieveSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserModel
+        fields = ("phone_number", "first_name", "last_name", "email", "date_joined")
 
 
 class LoginSerializer(serializers.ModelSerializer):
@@ -96,10 +120,4 @@ class UnBlockCodeSerializer(serializers.Serializer):
                 validated_data["user"] = user
                 return validated_data
             raise ValidationError("no user with this phone number")
-
-    # class Meta:
-    #     model = UserModel
-    #     fields = ("phone_number",)
-
-
 

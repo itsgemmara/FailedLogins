@@ -1,6 +1,8 @@
 from django.db import models
-from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.models import Token
+
 
 from .managers import CustomUserManager
 
@@ -40,7 +42,7 @@ class WrongPass(models.Model):
 
 class Block(models.Model):
 
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, unique=True)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now=True)  # interval start date
     count_of_wrong_pass = models.IntegerField(default=1, null=True)
 

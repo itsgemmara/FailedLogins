@@ -1,92 +1,105 @@
-import random
-from django.utils import timezone
-import threading
-from rest_framework import permissions
-from rest_framework.generics import CreateAPIView
-from rest_framework.views import APIView
-from django.contrib.auth import login, logout
-from rest_framework.authtoken.models import Token
-from django.http import HttpResponse
-from rest_framework import status
-from django.contrib.auth import get_user_model # If used custom user model
 from rest_framework.response import Response
+from rest_framework import generics, mixins, views
+from rest_framework.decorators import action
+from rest_framework import viewsets
 
-from .serializers import UserSerializer, LoginSerializer, UnBlockCodeSerializer, UnBlockSerializer
+from .serializer import *
 from .models import UnBlockCode
+from .utils import UnblockCodeGeneratorApi, UnBlockApi
+from Token.models import CustomToken
 
 
-class CreateUserApiView(CreateAPIView):
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    General ViewSet description
 
-    model = get_user_model()
-    permission_classes = [
-        permissions.AllowAny  # Or anon users can't register
-    ]
+    list: List user
+
+    retrieve: Retrieve user
+
+    update: Update user
+
+    create: Create user
+
+    partial_update: Patch user
+
+    login_user: login user
+
+    destroy: Delete user
+    """
+    queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
 
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserSerializer
+        elif self.action == 'update' or self.action == 'partial_update':
+            return UpdateUserSerializer
+        elif self.action == 'list':
+            return UserListSerializer
+        elif self.action == 'retrieve':
+            return UserRetrieveSerializer
+        elif self.action == 'login_user':
+            return LoginSerializer
+        return UserSerializer
 
-class LoginApi(APIView):
+    def get_permissions(self):
+        if self.action == 'update':
+            permission_classes = [permissions.IsAuthenticated(), ]
+            return permission_classes
+        elif self.action == 'list':
+            return [permissions.IsAdminUser(), ]
+        return [permissions.AllowAny(), ]
 
-    def post(self, request):
-        serializer = LoginSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception= True)
+    def get_queryset(self):
+        if self.request.user.is_superuser or self.request.user.is_staff:
+            return self.queryset
+        else:
+            return self.queryset.filter(phone_number=self.request.user.phone_number)
+
+    @action(detail=False, methods=['post', ])
+    def login_user(self, a):
+        serializer = LoginSerializer(data=self.request.data, context={'request': self.request})
+        serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        login(request, user)
-        token, created = Token.objects.get_or_create(user=user)
+        login(self.request, user)
+        token = CustomToken.objects.create(user=user)
         return Response({"Token": token.key}, status=200)
 
 
-class UnBlockApi(APIView):
+class AccountViewSet(viewsets.GenericViewSet,):
+    """
+    General Account ViewSet description
 
-    def activate_user_account(self, user, main_code, verify_code):
-        if main_code.code == verify_code:
-            user.is_locked, user.is_active = False, True
-            main_code.is_expired, main_code.used = True, True
-            main_code.save()
-            user.save()
+    unblock_code_generator: unblock code generator
+
+    unblock_account: unblock account
+    """
+    queryset = CustomUser.objects.all()
+    serializer_class = UserSerializer
+    http_method_names = ['post', ]
+
+    def get_serializer_class(self):
+        if self.action == 'unblock_code_generator':
+            return UnBlockCodeSerializer
+        if self.action == 'unblock_account':
+            return UnBlockSerializer
+        return UserSerializer
+
+    def get_queryset(self):
+        if self.request.user.is_superuser or self.request.user.is_staff:
+            return self.queryset
         else:
-            raise Exception('invalid code')
+            return self.queryset.filter(phone_number=self.request.user.phone_number)
 
-    def post(self, request):
-        serializer = UnBlockSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception= True)
-        user = serializer.validated_data["user"]
-        verify_code = serializer.validated_data["verify_code"]
-        try:
-            main_code = UnBlockCode.objects.get(user=user, used=False, is_expired=False)
-            self.activate_user_account(user, main_code, verify_code)
-        except Exception as ex:
-            raise Exception('invalid code. Enter the code correctly or request a new code.')
+    @action(detail=False, methods=['post', ])
+    def unblock_code_generator(self, a):
+        code = UnblockCodeGeneratorApi().post(self.request)
+        # user = self.request.user
+        # verify_code = UnBlockCode.objects.get(user=user, used=False, is_expired=False).code
+        return Response(code, status=200)
 
-        return Response(status=200)
-
-
-class UnblockCodeGeneratorApi(APIView):
-
-    def __init__(self, code=None):
-        self.code = code
-
-    def set_is_expired(self):
-        self.code.is_expired = True
-        self.code.expired_at = timezone.now()
-        self.code.save()
-        return self.code
-
-    def post(self, request):
-        serializer = UnBlockCodeSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-        new_code_status = serializer.validated_data["new_code"]
-        unexpired_codes = UnBlockCode.objects.filter(user=user, used=False, is_expired=False)
-        if unexpired_codes.count() == 0 or new_code_status:
-            verify_code = random.randint(10000, 99999)
-            if unexpired_codes.count() != 0:
-                for i in unexpired_codes:
-                    i.is_expired = True
-                    i.save()
-            self.code = UnBlockCode.objects.create(code=verify_code, user=user)
-            t = threading.Timer(interval=120, function=self.set_is_expired)
-            t.start()
-            return Response({"verify_code": verify_code}, status=200)
-        elif unexpired_codes.count() == 1 and not new_code_status:
-            verify_code = UnBlockCode.objects.get(user=user, used=False, is_expired=False).code
-            return Response({"verify code": verify_code}, status=200)
+    @action(detail=False, methods=['post', ])
+    def unblock_account(self, a):
+        unblock = UnBlockApi().post(self.request)
+        return Response(unblock, status=200)

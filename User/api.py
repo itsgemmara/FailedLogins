@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from rest_framework.generics import GenericAPIView
+from rest_framework import generics, mixins, views
 from rest_framework.decorators import action
 from rest_framework import viewsets
 
@@ -67,7 +67,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({"Token": token.key}, status=200)
 
 
-class AccountViewSet(viewsets.ModelViewSet):
+class AccountViewSet(viewsets.GenericViewSet,):
     """
     General Account ViewSet description
 
@@ -77,6 +77,7 @@ class AccountViewSet(viewsets.ModelViewSet):
     """
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
+    http_method_names = ['post', ]
 
     def get_serializer_class(self):
         if self.action == 'unblock_code_generator':

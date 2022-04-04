@@ -2,48 +2,52 @@ from rest_framework import viewsets
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.generics import GenericAPIView
+from rest_framework import mixins
 
-from .models import CustomToken
 from .serializer import *
 
 
-class TokenViewSet(viewsets.ViewSet, permissions.IsAuthenticated):
+class TokenViewSet(mixins.ListModelMixin,
+                   viewsets.GenericViewSet,
+                   mixins.DestroyModelMixin,
+                   ):
     """
     A ViewSet for listing, retrieving, deleting and some another actions for tokens.
+
+    list: List tokens
+
+    destroy: destroys a single token object selected by `id`
+
+    delete_token: deleting a token by another one.
     """
     queryset = CustomToken.objects.all()
+    serializer_class = TokensListSerializer
 
-    def list(self, request):
-        """
-        The list action returns all available tokens.
-        """
-        queryset = self.queryset.filter(user=request.user)
-        serializer = TokensListSerializer(queryset, many=True)
-        return Response(serializer.data)
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return TokensListSerializer
+        elif self.action == 'destroy':
+            return DestroyTokenSerializer
+        elif self.action == 'delete_token':
+            return DeleteTokenSerializer
+        return TokensListSerializer
 
-    def retrieve(self, request, pk=None):
-        """
-        The retrieve action returns a single object selected by 'id'.
-        """
-        queryset = self.queryset.filter(user=request.user)
-        token = get_object_or_404(queryset, pk=pk)
-        serializer = DestroyTokenSerializer(token)
-        return Response(serializer.data)
+    def get_permissions(self):
+        if self.action == 'delete_token' and self.action == 'list':
+            permission_classes = [permissions.IsAuthenticated(), ]
+            return permission_classes
+        elif self.action == 'destroy':
+            return [permissions.IsAdminUser(), ]
+        return [permissions.AllowAny(), ]
 
-    def destroy(self, request, pk=None):
-        """
-        The destroy action destroys a single object selected by `id`
-        """
-        queryset = self.queryset.filter(user=request.user)
-        token = get_object_or_404(queryset, pk=pk)
-        serializer = DestroyTokenSerializer(data={'key': token.key, 'pk': pk, 'created': token.created})
-        serializer.is_valid(raise_exception=True)
-        token.delete()
-        return Response('done', status=200)
+    def get_queryset(self):
+        if self.request.user.is_superuser or self.request.user.is_staff:
+            return self.queryset
+        else:
+            return self.queryset.filter(phone_number=self.request.user.phone_number)
 
     @action(detail=False, methods=['post'])
-    def delete_token(self, request, serializer_class, pk=None):
+    def delete_token(self, request):
         """
         The delete_token action deletes a token by another one.
         """
@@ -52,18 +56,3 @@ class TokenViewSet(viewsets.ViewSet, permissions.IsAuthenticated):
         target_token = serializer.validated_data["target_token"]
         target_token.delete()
         return Response(status=200)
-
-
-class DeleteToken(GenericAPIView, permissions.IsAuthenticated):
-    """
-    deleting a token by another one.
-    """
-    serializer_class = DeleteTokenSerializer
-
-    def post(self, request):
-        serializer = DeleteTokenSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        target_token = serializer.validated_data["target_token"]
-        target_token.delete()
-        return Response(status=200)
-

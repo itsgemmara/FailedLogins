@@ -3,14 +3,9 @@ from rest_framework.routers import DefaultRouter
 
 from .api import *
 
-
-account_router = DefaultRouter()
-account_router.register(r'account-viewset/', AccountViewSet, basename='failed_logins')
 user_router = DefaultRouter()
 user_router.register(r'user-viewset/', UserViewSet, basename='users')
 
-
 urlpatterns = [
     path('users/', include(user_router.urls)),
-    path('account/', include(account_router.urls)),
 ]

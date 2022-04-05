@@ -121,3 +121,11 @@ class UnBlockCodeSerializer(serializers.Serializer):
                 return validated_data
             raise ValidationError("no user with this phone number")
 
+
+class ShowPkSerializer(serializers.Serializer):
+    phone_number = serializers.CharField()
+
+
+class DeactivateSerializer(serializers.Serializer):
+    phone_number = serializers.CharField()
+    pk = serializers.CharField()
